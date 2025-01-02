@@ -14,8 +14,11 @@ class Value:
         return "Value : "+str(self.data)
 
     def __truediv__(self,other):
-        print(1)
         return self*(other**-1)
+
+    def __rtruediv__(self, other):
+        other = other if isinstance(other, Value) else Value(other)
+        return other * self**-1
 
     def __add__(self,other):
         other=other if isinstance(other,Value) else Value(other)
