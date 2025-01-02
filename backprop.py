@@ -7,7 +7,7 @@ class Value:
         self.prev=set(children)
         self.label=label
         self.op=op
-        self.grad=0
+        self.grad=0.0
         self.backward=lambda:None
 
     def __repr__(self):
@@ -36,7 +36,7 @@ class Value:
         return self+(-other)
     
     def __neg__(self):
-        return (-1)*self
+        return self*-1
 
     def __mul__(self,other):
         other=other if isinstance(other,Value) else Value(other)
@@ -58,9 +58,8 @@ class Value:
         res.backward=backward
         return res
 
-
     def tanh(self):
-        x=self.data3
+        x=self.data
         t=(np.exp(2*x)-1)/(np.exp(2*x)+1)
         res=Value(t,(self,),'tanh')
         def backward():
@@ -77,7 +76,6 @@ class Value:
         return res
 
     def backward_full(self):
-        print(1)
         topo=[]
         visited=set()
         def build_topo(v):
