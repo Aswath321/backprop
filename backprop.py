@@ -1,4 +1,5 @@
 import numpy as np
+from graphviz import Digraph
 
 class Value:
     def __init__(self,data,children=(),op='',label=''):
@@ -12,16 +13,30 @@ class Value:
     def __repr__(self):
         return "Value : "+str(self.data)
 
+    def __truediv__(self,other):
+        print(1)
+        return self*(other**-1)
 
     def __add__(self,other):
+        other=other if isinstance(other,Value) else Value(other)
         res=Value(self.data+other.data,(self,other),'+')
         def backward():
           self.grad+=1*res.grad
           other.grad+=1*res.grad
         res.backward=backward
         return res
+    
+    def __radd__(self,other):
+        return self+other
+
+    def __sub__(self,other):
+        return self+(-other)
+    
+    def __neg__(self):
+        return (-1)*self
 
     def __mul__(self,other):
+        other=other if isinstance(other,Value) else Value(other)
         res=Value(self.data*other.data,(self,other),'*')
         def backward():
           self.grad+=other.data*res.grad
@@ -29,30 +44,51 @@ class Value:
         res.backward=backward
         return res
 
-from graphviz import Digraph
-def trace(root):
-    nodes, edges = set(), set()
-    def build(v):
-        if v not in nodes:
-            nodes.add(v)
+    def __rmul__(self,other):
+        return self*other
+
+    def __pow__(self,other):
+        assert isinstance(other,(int,float)),"only int,float"
+        res=Value(self.data**other,(self,),'power')
+        def backward():
+          self.grad+=other*(self.data**(other-1))*res.grad
+        res.backward=backward
+        return res
+
+
+    def tanh(self):
+        x=self.data3
+        t=(np.exp(2*x)-1)/(np.exp(2*x)+1)
+        res=Value(t,(self,),'tanh')
+        def backward():
+            self.grad=(1-(t**2))*res.grad
+        res.backward=backward
+        return res
+
+    def exp(self):
+        x=self.data
+        res=Value(np.exp(x),(self,),'exp')
+        def backward():
+          self.grad+=res.data*res.grad
+        res.backward=backward
+        return res
+
+    def backward_full(self):
+        print(1)
+        topo=[]
+        visited=set()
+        def build_topo(v):
+          if v not in visited:
+            visited.add(v)
             for child in v.prev:
-                edges.add((child, v))
-                build(child)
-    build(root)
-    return nodes, edges
+              build_topo(child)
+            topo.append(v)
+        build_topo(self)
 
-def draw_dot(root, format='svg', rankdir='LR'):
-    assert rankdir in ['LR', 'TB']
-    nodes, edges = trace(root)
-    dot = Digraph(format=format, graph_attr={'rankdir': rankdir}) #, node_attr={'rankdir': 'TB'})
+        self.grad=1
+        for node in reversed(topo):
+          node.backward()
+              
 
-    for n in nodes:
-        dot.node(name=str(id(n)), label = "{ %s | data %.4f | grad %.4f  }" % (n.label,n.data,n.grad), shape='record')
-        if n.op:
-            dot.node(name=str(id(n)) + n.op, label=n.op)
-            dot.edge(str(id(n)) + n.op, str(id(n)))
+    
 
-    for n1, n2 in edges:
-        dot.edge(str(id(n1)), str(id(n2)) + n2.op)
-
-    return dot
